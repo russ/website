@@ -1,5 +1,8 @@
 class Guides::GettingStarted::Installing < GuideAction
   ANCHOR_INSTALL_REQUIRED_DEPENDENCIES = "perma-install-required-dependencies"
+  ANCHOR_POSTGRESQL                    = "perma-install-postgres"
+  ANCHOR_PROC_MANAGER                  = "perma-install-process-manager"
+  ANCHOR_NODE                          = "perma-install-node"
   guide_route "/getting-started/installing"
 
   def self.title
@@ -9,18 +12,201 @@ class Guides::GettingStarted::Installing < GuideAction
   def markdown : String
     <<-MD
     #{permalink(ANCHOR_INSTALL_REQUIRED_DEPENDENCIES)}
-    ## Install Required Dependencies
+    ## MacOS requirements
 
-    ### Crystal v0.31.1
+    ### 1. Install Homebrew
 
-    **We recommend using a version manager** to make sure the correct
-    version of Crystal is used with Lucky.
-    Try [crenv](https://github.com/pine/crenv) (recommended) or
-    [asdf-crystal](https://github.com/marciogm/asdf-crystal) (great if you already use [asdf](https://github.com/asdf-vm/asdf))
+    Installation instructions from the [Homebrew website](https://brew.sh/)
 
-    Alternatively you could [install Crystal without a version manager](https://crystal-lang.org/reference/installation/).
+    ```plain
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+    ```
 
-    ### Process manager
+    ### 2. Install OpenSSL
+
+    ```plain
+    brew install openssl
+    ```
+
+    ### 3. Configure SSL for Crystal
+
+    You'll need to tell Crystal how to find OpenSSL by adding an `export`
+    to your `~/.bash_profile` or `~/.zshrc`.
+
+    > You can run `echo $SHELL` in your terminal if you're not sure whether you
+      are using ZSH or Bash.
+
+    **For ZSH (the default as of macOS Catalina):**
+
+    ```plain
+    echo 'export PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig' >>~/.zshrc
+    ```
+
+    **For Bash:**
+
+    ```plain
+    echo 'export PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig' >>~/.bash_profile
+    ```
+
+    > If you get an error like this: "Package libssl/libcrypto was not found in the
+      pkg-config search path" then be sure to run this step so that
+      Crystal knows where OpenSSL is located.
+
+    ## Linux requirements
+
+    ### Debian
+
+    ```plain
+    apt-get install libc6-dev libevent-dev libpcre2-dev libpng-dev libssl-dev libyaml-dev zlib1g-dev
+    ```
+
+    ### Ubuntu
+
+    ```plain
+    apt-get install libc6-dev libevent-dev libpcre2-dev libpcre3-dev libpng-dev libssl-dev libyaml-dev zlib1g-dev
+    ```
+
+    ### Fedora (28)
+
+    ```plain
+    dnf install glibc-devel libevent-devel pcre2-devel openssl-devel libyaml-devel zlib-devel libpng-devel
+    ```
+
+    ## Crystal Version
+
+    Lucky supports Crystal `>= #{LuckyCliVersion.min_compatible_crystal_version}`, `<= #{LuckyCliVersion.max_compatible_crystal_version}`
+
+    ### 1. Install Crystal
+
+    **Using asdf version manager:**
+
+    We recommend using a version manager to make sure the correct version of
+    Crystal is used with Lucky.
+
+    * [Install asdf](https://asdf-vm.com/#/core-manage-asdf)
+    * Install the [asdf-crystal](https://github.com/marciogm/asdf-crystal) plugin:
+
+    ```plain
+    asdf plugin-add crystal https://github.com/asdf-community/asdf-crystal.git
+    ```
+
+    * Set up `asdf` so it uses the `.crystal-version` file to determine which version to use:
+
+    ```plain
+    echo "legacy_version_file = yes" >>~/.asdfrc
+    ```
+
+    * Install Crystal with `asdf`.
+
+    ```plain
+    asdf install crystal #{LuckyCliVersion.min_compatible_crystal_version}
+    ```
+
+    * See which version of crystal was installed
+
+    ```plain
+    asdf list crystal
+    ```
+
+    * Set global version of crystal to that version (#{LuckyCliVersion.min_compatible_crystal_version} is used as an example)
+
+    ```plain
+    asdf global crystal #{LuckyCliVersion.min_compatible_crystal_version}
+    ```
+
+    **Or, install Crystal without a version manager**
+
+    If you can't get asdf installed or don't want to use a version manager,
+    you can [install Crystal without a version manager](https://crystal-lang.org/install/).
+
+    ### 2. Check installation
+
+    ```plain
+    crystal -v
+    ```
+
+    Should return at least `#{LuckyCliVersion.min_compatible_crystal_version}`
+
+    ## Install Lucky CLI on macOS
+
+    Once the required dependencies above are installed, set up Lucky for your system.
+
+    ### 1. Add the Lucky tap to Homebrew
+
+    ```plain
+    brew tap luckyframework/homebrew-lucky
+    ```
+
+    ### 2. Install the Lucky CLI with Homebrew
+
+    ```plain
+    brew install lucky
+    ```
+
+    ### 3. Check installation
+
+    Let's make sure the Lucky CLI installed correctly:
+
+    ```plain
+    lucky -v
+    ```
+
+    This should return `#{LuckyCliVersion.current_version}`
+
+    ## Install Lucky CLI on Linux
+
+    ### 1. Clone the CLI repo
+
+    ```plain
+    git clone https://github.com/luckyframework/lucky_cli
+    ```
+
+    ### 2. Change into the newly cloned directory
+
+    ```plain
+    cd lucky_cli
+    ```
+
+    ### 3. Check out the latest released version
+
+    ```plain
+    git checkout #{LuckyCliVersion.current_tag}
+    ```
+
+    ### 4. Install shards
+
+    We call packages/libraries in Crystal "shards". Let's install the shards that Lucky CLI needs:
+
+    ```plain
+    shards install
+    ```
+
+    ### 5. Build the CLI
+
+    ```plain
+    crystal build src/lucky.cr
+    ```
+
+    ### 6. Move the generated binary to your path
+
+    This will let you use `lucky` from the command line.
+
+    ```plain
+    mv lucky /usr/local/bin
+    ```
+
+    ### 7. Check installation
+
+    Let's make sure the Lucky CLI installed correctly:
+
+    ```plain
+    lucky -v
+    ```
+
+    This should return `#{LuckyCliVersion.current_version}`
+
+    #{permalink(ANCHOR_PROC_MANAGER)}
+    ## Process manager
 
     Lucky uses a process manager to watch assets and start the server in development.
 
@@ -29,60 +215,93 @@ class Guides::GettingStarted::Installing < GuideAction
     [forego](https://github.com/ddollar/forego#installation),
     or [foreman](https://github.com/ddollar/foreman#installation).
 
-    > By  default Lucky creates a `Procfile.dev` that  defines  what processes should be started when running `lucky dev`.
+    > By default Lucky creates a `Procfile.dev` that  defines  what processes should be started when running `lucky dev`.
     > You can modify the `Procfile.dev` to start other processes like running
     > background jobs.
 
-    ### Postgres database
+    > For WSL users on Windows, Overmind is not recommended due to [compatibility issues](https://github.com/DarthSim/overmind/issues/88).
+
+    #{permalink(ANCHOR_POSTGRESQL)}
+    ## Postgres database
+
+    ### 1. Install Postgres
 
     Lucky uses Postgres for its database. Install Postgres ([macOS](https://postgresapp.com)/[Others](https://wiki.postgresql.org/wiki/Detailed_installation_guides))
 
-    ### Debian and Fedora dependencies
+    ### 1a. (macOS only) Ensure Postgres CLI tools installed
 
-    * Debian (Ubuntu should be similar): run `apt-get install libc6-dev libevent-dev libpcre2-dev libpng-dev libssl1.0-dev libyaml-dev zlib1g-dev`
-    * Fedora (28): run `dnf install glibc-devel libevent-devel pcre2-devel openssl-devel libyaml-devel zlib-devel libpng-devel`. libpng-devel is for Laravel Mix
+    If you're using [Postgres.app](https://postgresapp.com) on macOS make sure
+    [Postgres CLI tools](https://postgresapp.com/documentation/cli-tools.html) are installed
 
-    ### For building assets (skip if building APIs)
+    ```plain
+    sudo mkdir -p /etc/paths.d &&
+      echo /Applications/Postgres.app/Contents/Versions/latest/bin | sudo tee /etc/paths.d/postgresapp
+    ```
 
-    * [Node](https://nodejs.org/en/download/). Requires at least v6
+    There are other installation methods available in [Postgres CLI tools docs](https://postgresapp.com/documentation/cli-tools.html)
+
+    ### 1b. (Linux only) Password-less logins for local development
+
+    Homebrew installed PostgreSQL on macOS are configured by default to allow password-less logins. But for Linux, if you wish to
+    use PostgreSQL without a password, you'll need to ensure your `pg_hba.conf` file is updated.
+    We recommend adding this entry right after the `postgres` user entry:
+
+    ```plain
+    # TYPE  DATABASE        USER            ADDRESS                 METHOD
+    # "local" is for Unix domain socket connections only
+    local   all             all                                     trust
+    # IPv4 local connections:
+    host    all             all             127.0.0.1/32            trust
+    # IPv6 local connections:
+    host    all             all             ::1/128                 trust
+    ```
+
+    Visit [PostgreSQL Authentication Methods](https://www.postgresql.org/docs/12/auth-methods.html) to learn
+    more more about available authentication methods and how to configure them for PostgreSQL.
+
+    > Restart the `postgresql` service to activate the configuration changes.
+
+    ### 2. Ensure Postgres CLI tools installed
+
+    First open a new session to reload your terminal, then:
+
+    ```plain
+    psql --version
+    ```
+
+    Should return `psql (PostgreSQL) 10.x` or higher.
+
+    #{permalink(ANCHOR_NODE)}
+    ## Node and Yarn (optional)
+
+    > You can skip this if you only plan to only build APIs.
+
+    ### 1. Install
+
+    * [Node](https://nodejs.org/en/download/). Requires at least v11
     * [Yarn](https://yarnpkg.com/lang/en/docs/install/)
 
-    ### Dependencies for browser tests
+    ### 2. Check installation
 
-    You will need additional dependencies if you want to test your frontend using [LuckyFlow](#{Guides::Frontend::Testing.path}),
-    see the [Testing HTML and Interactivity](#{Guides::Frontend::Testing.path}) guide for details.
+    ```plain
+    node -v
+    yarn -v
+    ```
 
-    ## Install Lucky CLI
+    Node should return greater than v11. Yarn should return greater than 1.x.
 
-    Once the required dependencies are installed, set up Lucky for your system.
+    ## Chrome Browser (optional)
 
-    ### On macOS
+    > You can skip this if you only plan to only build APIs.
 
-    * Install [Homebrew](https://brew.sh/)
-    * Run `brew install openssl` to make sure you have OpenSSL
-    * Run `brew tap luckyframework/homebrew-lucky`
-    * Run `brew install lucky`
-    * Make sure [Postgres CLI tools](https://postgresapp.com/documentation/cli-tools.html)
-      are installed if you're using Postgres.app
-    * If you are on macOS High Sierra you need to add `export PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig`
-    to your `~/.bash_profile` or `~/.zshrc`
+    Lucky uses Chromedriver for [Testing HTML](#{Guides::Testing::HtmlAndInteractivity.path}).
+    The Chromedriver utility will be installed for you once you start running your tests; however,
+    it requires the Chrome browser to be installed on your machine. If you don't already have it
+    installed, you can install it directly from [Google](https://www.google.com/chrome/).
 
-    > If you get an error like this: `Package libssl/libcrypto was not found in the
-    pkg-config search path` then be sure to run the last step listed above so that
-    Crystal knows where OpenSSL is located.
+    > You can also use an alternative chrome-like browser (e.g. Brave, Edge, etc...). See the
+    > [Flow](#{Guides::Testing::HtmlAndInteractivity.path}) guides for customization options.
 
-    ### On Linux
-
-    * `git clone` the CLI repo at https://github.com/luckyframework/lucky_cli
-    * cd into the newly cloned directory
-    * Check out latest [released version](https://github.com/luckyframework/lucky_cli/releases) `git checkout #{LuckyCliVersion.current_tag}`
-    * Run `shards install`
-    * Run `crystal build src/lucky.cr`
-    * Move the generated `lucky` binary to your path. Most of the time you can move
-      it to `/usr/local/bin` and it should work: `mv lucky /usr/local/bin`.
-
-    If you needed different steps, please help contribute to this section by
-    [editing this page on GitHub](https://github.com/luckyframework/website/blob/master/src/actions/guides/getting-started/installing.cr).
     MD
   end
 end

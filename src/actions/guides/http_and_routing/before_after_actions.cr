@@ -37,11 +37,9 @@ class Guides::HttpAndRouting::BeforeAfterActions < GuideAction
 
     Pipes *must* return `continue` or a standard
     [`Lucky::Response`](#{Guides::HttpAndRouting::RequestAndResponse.path(anchor: Guides::HttpAndRouting::RequestAndResponse::ANCHOR_HANDLING_RESPONSES)}).
-    If a `Lucky::Response` is returned by rendering or redirecting, then no
-    other pipe will run.
 
-    > If your `before` pipe returns with a render or redirect, then the
-    > action will not be called.
+    > If a `Lucky::Response` is returned by rendering or redirecting, then no
+    > other pipe will run.
 
     ## Sharing pipes across actions
 
@@ -58,7 +56,8 @@ class Guides::HttpAndRouting::BeforeAfterActions < GuideAction
       end
 
       private def log_request_path
-        Lucky.logger.info({method: request.method, path: request.path})
+        Log.dexter.info { {method: request.method, path: request.path} }
+        continue
       end
     end
     ```
@@ -97,7 +96,8 @@ class Guides::HttpAndRouting::BeforeAfterActions < GuideAction
       after log_request_path
 
       def log_request_path
-        Lucky.logger.info({method: request.method, path: request.path})
+        Log.dexter.info { {method: request.method, path: request.path} }
+        continue
       end
     end
     ```

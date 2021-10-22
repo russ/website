@@ -178,7 +178,7 @@ class Guides::Authentication::Browser < GuideAction
     class Posts::Index < BrowserAction
       include Auth::AllowGuests
 
-      route do
+      get "/posts" do
         html Posts::IndexPage, posts: PostQuery.new
       end
     end
@@ -203,8 +203,8 @@ class Guides::Authentication::Browser < GuideAction
     Let's say we have this action that requires sign in:
 
     ```crystal
-    class Settings::Edit < MainLayout
-      route do
+    class Settings::Edit < BrowserAction
+      get "/settings/edit" do
         html Settings::EditPage
       end
     end

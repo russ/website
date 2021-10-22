@@ -1,6 +1,8 @@
 class Guides::Frontend::RenderingHtml < GuideAction
   ANCHOR_RENDERING_TEMPLATES = "perma-rendering-templates"
   ANCHOR_COMPONENTS          = "perma-components"
+  ANCHOR_EMPTY_TAG           = "perma-empty-tag"
+  ANCHOR_SPECIAL_TAGS        = "perma-special-tags"
   guide_route "/frontend/rendering-html"
 
   def self.title
@@ -14,7 +16,7 @@ class Guides::Frontend::RenderingHtml < GuideAction
     Lucky uses Crystal methods for rendering HTML. The Crystal methods map
     as closely as possible to how HTML is used. To help with the transition
     we also have a small app for [converting HTML to
-    Lucky methods](https://luckyhtml.herokuapp.com).
+    Lucky methods](#{HtmlConversions::New.path}).
 
     Using Lucky HTML adds an additional layer of type-safety, is
     auto-formatted with Crystal's formatter, and can be much easier to
@@ -31,7 +33,7 @@ class Guides::Frontend::RenderingHtml < GuideAction
     ```crystal
     # in src/actions/users/index.cr
     class Users::Index < BrowserAction
-      route do
+      get "/users" do
         # Renders the Users::IndexPage
         html IndexPage, user_names: ["Paul", "Sally", "Jane"]
       end
@@ -50,7 +52,7 @@ class Guides::Frontend::RenderingHtml < GuideAction
 
       def content
         ul class: "my-user-list" do
-          @user_names.each do |name|
+          user_names.each do |name|
             li name, class: "user-name"
           end
         end
@@ -63,13 +65,70 @@ class Guides::Frontend::RenderingHtml < GuideAction
     ## Declaring what a page needs
 
     You’ll notice we used `needs` near the top of the class. This declares that for
-    this page to render we need an Array of Strings and that they will be assigned
-    to the `@user_names` variable. We set the user names by passing it in the
-    `html` macro in our action: `html IndexPage, user_names: ["Paul", "Sally", "Jane"]`
+    this page to render we need an Array of Strings and that they will be accessible
+    from the `user_names` getter method. We set the user names by passing it in the
+    `html` macro in our action:
+
+    ```crystal
+    # src/actions/users/index.cr
+    class Users::Index < BrowserAction
+      get "/users" do
+        html IndexPage, user_names: ["Paul", "Sally", "Jane"]
+      end
+    end
+    ```
 
     > This is nice because you won’t accidentally forget to pass something to a page
     ever again. If you forget, the compiler will tell you that you’re missing
     something.
+
+    ### Default values and nilable needs
+
+    Your page or component may need some value that is optional. In this case, you can
+    assign a default value to your `needs` or just make the type nilable. (i.e. `String?`)
+
+    ```crystal
+    class Users::IndexPage < MainLayout
+      needs page : Int32 = 1
+      needs status : String?
+
+      def content
+        # `page` will always have a value
+        # `status` may be nil
+      end
+    end
+    ```
+
+    From your action, you can optionally pass either of these values.
+
+    ```crystal
+    get "/users" do
+      html IndexPage
+      # or
+      html IndexPage, page: 2
+      # or
+      html IndexPage, status: "active", page: 3
+    end
+    ```
+
+    ### Using needs with Bool
+
+    When you use a `Bool` value for `needs`, Lucky will generate a helpful
+    method for you that ends in `?` to denote that it will return `true` or `false`.
+
+    ```crystal
+    class Users::IndexPage < MainLayout
+      needs admin : Bool = false
+
+      def content
+        if admin?
+          # ...
+        else
+          # ...
+        end
+      end
+    end
+    ```
 
     ## Rendering HTML in our page
 
@@ -160,24 +219,26 @@ class Guides::Frontend::RenderingHtml < GuideAction
     end
     ```
 
-    > NOTE: Lucky will automatically run attributes through a dasherize inflector. This means underscores will become a dash once rendered. (e.g. `:ng_app` becomes `ng-app`). In more complex cases like you see in Vuejs, crystal allows you to use quotes like in `:"v-on:click"`
+    > NOTE: Lucky will automatically run attributes through a dasherize inflector. This means underscores will
+    > become a dash once rendered. (e.g. `:ng_app` becomes `ng-app`). In more complex cases like you see in Vuejs,
+    > crystal allows you to use quotes like in `:"v-on:click"`
 
+    #{permalink(ANCHOR_SPECIAL_TAGS)}
     ## Special tags (link, form helpers, etc.)
 
     There are a few specials helpers that make it easier. For creating links with an
     anchor tag, we have the `link` helper.
 
-    ```crystal
-    link "Link Text", to: "/somewhere", class: "some-html-class"
+    > NOTE: If you are looking for a way to create `<link>` tags in the `<head>`, use the [`empty_tag` helper](##{ANCHOR_EMPTY_TAG}).
 
-    # The real power comes when used with route helpers from actions
-    link "Show user", to: Users::Show.with("user_id"), class: "some-html-class"
+    ```crystal
+    link "Show user", to: Users::Show.with(user.id), class: "some-html-class"
 
     # Leave off `with` if an route doesn't need params
     link "List of users", to: Users::Index
     ```
 
-    When you pass a route helper as we did with `Users::Show.with("user_id")`, the
+    When you pass a route helper as we did with `Users::Show.with(user.id)`, the
     link helper automatically sets the path *and* the correct HTTP verb.
 
     Since the HTTP verb (`GET`, `POST`, `PUT`, etc.) is automatically used by `link`
@@ -186,10 +247,10 @@ class Guides::Frontend::RenderingHtml < GuideAction
     ```crystal
     # data-method="delete" will automatically be set.
     # This means the link submits with the right HTTP verb automatically.
-    link "Delete", to: Users::Delete.with("user_id")
+    link "Delete", to: Users::Delete.with(user.id)
 
     # You can use the same nesting as with most other tags
-    link to: Users::Delete.with("user_id"), class: "delete-link" do
+    link to: Users::Delete.with(user.id), class: "delete-link" do
       img src: asset("images/delete-icon.svg")
     end
     ```
@@ -239,10 +300,43 @@ class Guides::Frontend::RenderingHtml < GuideAction
     link "View task", ::Tasks::Show.with(123)
     ```
 
+    > The `link` helper method doesn't allow for a plain string path. If you need to pass a string,
+    > you can use the `a()` method. (e.g. `a href: "/"`).
+
     ### Rendering HTML forms
 
-    There are some helpers for rendering HTML forms. For more info see the [saving
-    data with operations](#{Guides::Database::ValidatingSaving.path(anchor: Guides::Database::ValidatingSaving::ANCHOR_USING_WITH_HTML_FORMS)}) guide.
+    Lucky gives you lots of helper methods to make working with forms easier.
+    See the [rendering HTML forms](#{Guides::Frontend::HtmlForms.path}) guide to learn more.
+
+    For info on interacting with databases, see the [saving
+    data with operations](#{Guides::Database::SavingRecords.path(anchor: Guides::Database::SavingRecords::ANCHOR_USING_WITH_HTML_FORMS)}) guide.
+
+    #{permalink(ANCHOR_EMPTY_TAG)}
+    ### Empty tag
+
+    If there's a bodyless tag you would like to render, but there is no helper for it, then use `empty_tag`.
+
+    ```crystal
+    # Renders an alternative language link element:
+    # <link rel="alternate" hreflang="es" href="https://www.example.es/" />
+
+    empty_tag "link", rel: "alternate", hreflang: "es" href: "https://www.example.es/"
+    ```
+
+    The first argument is a string that represents the tag name, the second is a hash passed to render as attributes.
+    This is especially convenient for elements with varying attributes, like a set of favicons:
+
+    ```crystal
+    head do
+      # ...
+
+      empty_tag "link", rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png"
+      empty_tag "link", rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32x32.png"
+      empty_tag "link", rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon-16x16.png"
+      empty_tag "link", rel: "manifest", href: "/site.webmanifest"
+      empty_tag "link", rel: "mask-icon", href: "/safari-pinned-tab.svg", color: "#c0ffee"
+    end
+    ```
 
     ### Other special helpers
 
@@ -251,6 +345,7 @@ class Guides::Frontend::RenderingHtml < GuideAction
     * `js_link(src, **options)` - Renders a `<script>` tag with `src` and any additional/override `options`
     * `utf8_charset` - Renders a `<meta charset="utf8">` tag
     * `responsive_meta_tag` - Another meta tag for responsive design.
+    * `canonical_link(href)` - Renders a `<link rel="canonical" href="...">` tag.
     * `nbsp(how_many = 1)` - Renders `&nbsp;` entity for the number of times in `how_many` (1 by default).
     * `raw` - Render RAW string to the page.
 
@@ -271,7 +366,7 @@ class Guides::Frontend::RenderingHtml < GuideAction
     end
     ```
 
-    ### Render unescaped text
+    ### Render unescaped (raw) text
 
     ```crystal
     div "email" do
@@ -280,7 +375,82 @@ class Guides::Frontend::RenderingHtml < GuideAction
     end
     ```
 
-    ## Page helpers
+    ## Finding the current page
+
+    Lucky provides the convenient `current_page?` helper on both pages and components to make it easier
+    to customize content based on context.
+
+    ### Basic usage
+
+    `current_page?` accepts a `RouteHelper`, `Action`, or path `String`.
+
+    One common use case is to highlight the currently-viewed page in a navigation header:
+
+    ```crystal
+    nav do
+      ul do
+        link "Home",
+          to: Home::Index,
+          data_selected: current_page?(Home::Index)
+
+        link "Your dashboard",
+          to: Dashboard::Index,
+          data_selected: current_page?(Dashboard::Index)
+
+        link "Your profile",
+          to: Me::Show,
+          data_selected: current_page?(Me::Show)
+      end
+    end
+
+    ```
+
+    ### Advanced usage
+
+    Let's take a look at some of the additional features we can take advantage of with `current_page?`.
+
+    For example, if we are visiting `https://example.com/users?sort_by=name`:
+
+    ```crystal
+    current_page?(Users::Index)
+    # => true
+
+    current_page?("/users")
+    # => true
+
+    current_page?("/users?sort_by=email")
+    # => true
+
+    current_page?("/users?sort_by=name")
+    # => true
+
+    current_page?("https://example.com/users")
+    # => true
+    ```
+
+    We can provide an optional second argument to `current_page?`, `check_query_params`,
+    to tell Lucky whether or not it should care about parameters.
+
+    Let's take a look at our `https://example.com/users?sort_by=name` example from before with this new parameter in mind:
+
+    ```crystal
+    current_page?(Users::Index, check_query_params: true)
+    # => true
+
+    current_page?("/users", check_query_params: true )
+    # => true
+
+    current_page?("/users?sort_by=email", check_query_params: true)
+    # => false
+
+    current_page?("/users?sort_by=name", check_query_params: true)
+    # => true
+
+    current_page?("https://example.com/users", check_query_params: true)
+    # => true
+    ```
+
+    ## Formatting and Page helpers
 
     Formatting text on pages is pretty common. Lucky gives you several handy methods to help formatting.
 
@@ -315,7 +485,7 @@ class Guides::Frontend::RenderingHtml < GuideAction
 
     ```crystal
     truncate("Four score and seven years ago", length: 20) do
-      link "Read more", to: "#"
+      link "Read more", to: President::Addresses
     end
     # => "Four score and se...<a href="#">Read more</a>"
     ```
@@ -410,6 +580,22 @@ class Guides::Frontend::RenderingHtml < GuideAction
     time_ago_in_words(Time.utc(2019, 8, 30))
     # => "about a month"
     ```
+
+    ### Cycle values
+
+    The most common case is alternating an HTML class name between rows of data. Lucky comes with a `cycle` method that makes this much
+    easier to do.
+
+    ```crystal
+    posts.each do |post|
+      tr class: cycle(["bg-gray-600", ""]) do
+        td post.title
+      end
+    end
+    ```
+
+    In this example, the first row, and all odd rows, will be `<tr class="bg-gray-600">`, but the next row, and all even rows, will be
+    `<tr class="">`. You can pass as many values as you'd like to cycle through on each iteration.
 
     ## Layouts
 
@@ -549,7 +735,7 @@ class Guides::Frontend::RenderingHtml < GuideAction
 
       def render
         div class: "user-row" do
-          link @user.name, to: Users::Show.with(@user)
+          link user.name, to: Users::Show.with(user)
         end
       end
     end
@@ -562,7 +748,7 @@ class Guides::Frontend::RenderingHtml < GuideAction
       needs user : User
 
       def content
-        mount Users::Row.new(@user)
+        mount Users::Row, user: user
       end
     end
     ```
@@ -590,7 +776,7 @@ class Guides::Frontend::RenderingHtml < GuideAction
     Now use it in a page:
 
     ```crystal
-    mount RoundedContainer.new do
+    mount RoundedContainer do
       h1 "This will be inside the div defined in the component"
     end
     ```
@@ -616,7 +802,7 @@ class Guides::Frontend::RenderingHtml < GuideAction
     ```crystal
     # Without `expose`
     class Users::Index < BrowserAction
-      route do
+      get "/users" do
         html IndexPage, current_user_name: current_user_name
       end
 
@@ -629,11 +815,33 @@ class Guides::Frontend::RenderingHtml < GuideAction
     class Users::Index < BrowserAction
       expose current_user_name
 
-      route do
+      get "/users" do
         html IndexPage
+      end
+
+      private def current_user_name
+        "Bobby"
+      end
+    end
+
+    # Accessing it on all pages with `needs`
+    abstract class MainLayout
+      include Lucky::HTMLPage
+
+      needs current_user_name : String
+
+      #...
+    end
+
+    class Users::IndexPage < MainLayout
+      def content
+        h1 "Hello, \#{current_user_name}"
       end
     end
     ```
+
+    > `needs` will create a Crystal `getter` method by that name for you. Putting it in
+    > the `MainLayout` gives you access to that method on all pages.
 
     ### Full example
 
@@ -705,18 +913,18 @@ class Guides::Frontend::RenderingHtml < GuideAction
     ```crystal
     # In src/posts/new_page.cr
     class Posts::NewPage < MainLayout
-      needs form : SavePost
+      needs save_post : SavePost
 
       def content
         h1 "New Blog Post"
-        render_post_form(@form)
+        render_post_form(save_post)
       end
 
-      def render_post_form(f)
+      def render_post_form(operation)
         form_for Posts::Create do
-          mount Shared::Field.new(f.title), &.text_input(autofocus: "true")
-          mount Shared::Field.new(f.body)
-          mount Shared::Field.new(f.published_at)
+          mount Shared::Field, operation.title, &.text_input(autofocus: "true")
+          mount Shared::Field, operation.body
+          mount Shared::Field, operation.published_at
 
           submit "Save", data_disable_with: "Saving..."
         end
@@ -737,7 +945,7 @@ class Guides::Frontend::RenderingHtml < GuideAction
 
     ```erb
     <h1>New Blog Post<h1>
-    <% render_post_form(@form) %>
+    <% render_post_form(@operation) %>
     ```
 
     And you're done!

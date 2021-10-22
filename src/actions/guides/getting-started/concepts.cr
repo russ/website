@@ -32,8 +32,8 @@ class Guides::GettingStarted::Concepts < GuideAction
     2. Lucky routes the request to a matching [Action](#{Guides::HttpAndRouting::RoutingAndParams.path}).
       * In Lucky, [an Action defines what HTTP method and path it handles](#{Guides::HttpAndRouting::RoutingAndParams.path}).
     3. Action processes the request. For example:
-      * [Query the database with Avram](#{Guides::Database::QueryingDeleting.path}).
-      * [Create or update db records with Avram](#{Guides::Database::ValidatingSaving.path}).
+      * [Query the database with Avram](#{Guides::Database::Querying.path}).
+      * [Create or update db records with Avram](#{Guides::Database::SavingRecords.path}).
       * [Send an email with Carbon](#{Guides::Emails::SendingEmailsWithCarbon.path}).
     4. The Action generates a response for the browser or client. For example:
       * [Generate an HTML page](#{Guides::Frontend::RenderingHtml.path}).
@@ -65,7 +65,9 @@ class Guides::GettingStarted::Concepts < GuideAction
 
     ### `public` folder
 
-    Place any files you wish to be public in here. For compiled assets, the asset compiler will move the files in to here for you.
+    Place any files you wish to be public in here. Files placed in here will be publicly accessible from the root path of your app. (e.g. `/robots.txt`)
+
+    > For compiled assets, the asset compiler will move the files in to here for you.
 
     ### `script` folder
 

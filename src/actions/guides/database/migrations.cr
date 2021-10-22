@@ -1,6 +1,7 @@
 class Guides::Database::Migrations < GuideAction
-  ANCHOR_ASSOCIATIONS = "perma-associations"
-  ANCHOR_PRIMARY_KEYS = "perma-primary-keys"
+  ANCHOR_ASSOCIATIONS            = "perma-associations"
+  ANCHOR_PRIMARY_KEYS            = "perma-primary-keys"
+  ANCHOR_ADVANCED_COLUMN_OPTIONS = "perma-advanced-column-options"
   guide_route "/database/migrations"
 
   def self.title
@@ -44,6 +45,7 @@ class Guides::Database::Migrations < GuideAction
     * `db.rollback_all` - Undo all of the migrations back to the beginning.
     * `db.migrations.status` - Displays the current status of migrations.
     * `db.verify_connection` - Tests that Avram can connect to your database.
+    * `db.setup` - Create then migrate your database.
 
     [Learn more about tasks](#{Guides::CommandLineTasks::BuiltIn.path})
 
@@ -105,7 +107,9 @@ class Guides::Database::Migrations < GuideAction
     end
     ```
 
-    ## Create table
+    ## Create table or view
+
+    ### Creating a table
 
     Use the `create` method for creating a table. You will place all of the table definitions
     inside of the `create` block.
@@ -118,7 +122,29 @@ class Guides::Database::Migrations < GuideAction
     end
     ```
 
+    Use this in conjunction with the `table` macro for your models. See [setting up a model](#{Guides::Database::Models.path})
+    for more information.
+
     > You can also use a symbol for a table name. For example `create :users`.
+
+    ### Create a view
+
+    A SQL VIEW is simlar to a table, except read-only, and doesn't normally include any sort of primary key. These are great
+    for pulling data from a larger table in to a smaller set for quicker access, or if you need to combine data from multiple
+    tables.
+
+    It will be up to you to decide where the data will come from.
+
+    ```crystal
+    def migrate
+      execute <<-SQL
+      CREATE VIEW admin_users AS
+        SELECT users.*
+        FROM users
+        JOIN admins on admins.name = users.name;
+      SQL
+    end
+    ```
 
     #{permalink(ANCHOR_PRIMARY_KEYS)}
     ## Primary keys
@@ -175,6 +201,22 @@ class Guides::Database::Migrations < GuideAction
     end
     ```
 
+    ### Case-Insensitive (citext)
+
+    Avram supports the postgres [citext](https://www.postgresql.org/docs/10/citext.html)
+    column type. To use this, you'll need to enable to `citext` extension first.
+    Then specify the column as a `String` type, and use the option `case_sensitive: false`.
+
+
+    ```crystal
+    # Be sure to add this line!
+    enable_extension "citext"
+
+    alter table_for(User) do
+      add email : String, case_sensitive: false
+    end
+    ```
+
     ### Making columns required or optional
 
     By default columns are **required** (`NOT NULL` in SQL terms). You can
@@ -207,6 +249,7 @@ class Guides::Database::Migrations < GuideAction
     * `JSON::Any` - Maps to postgres `jsonb`.
     * `Array(T)` - Maps to postgres array fields where `T` is any of the other datatypes.
 
+    #{permalink(ANCHOR_ADVANCED_COLUMN_OPTIONS)}
     ### Advanced Options
 
     The `add` method takes several options for further customization when adding a field.
@@ -224,7 +267,7 @@ class Guides::Database::Migrations < GuideAction
     ```
 
 
-    ## Drop table
+    ## Drop table or view
 
     To drop a table, use the `drop` method.
 
@@ -238,6 +281,14 @@ class Guides::Database::Migrations < GuideAction
     method should run `drop`.
 
     > You can also use a symbol for a table name. For example `create :users`.
+
+    To drop a view, use `execute` with a `DROP VIEW` SQL call.
+
+    ```crystal
+    def rollback
+      execute "DROP VIEW admin_users;"
+    end
+    ```
 
     ## Alter table
 
@@ -254,15 +305,24 @@ class Guides::Database::Migrations < GuideAction
 
     > You can also use a symbol for a table name. For example `create :users`.
 
-    ## Using fill_existing_with
+    ## Using fill_existing_with and default values
 
     When using the `add` method inside an `alter` block, there's an additional option `fill_existing_with`.
 
-    If your column is required, you will need to set a default value on all records otherwise you'll have errors.
+    * `fill_existing_with` will backfill existing records with this value; however,
+      new records will not have any values by default.
+    * `default` will set the column's default value, and postgres will automatically backfill
+      existing records with this default.
+
+    Since these options solve similar problems, they can't both be used at the same time.
 
     ```crystal
     alter table_for(User) do
-      add active : Bool, default: true, fill_existing_with: true
+      # set all existing, and future users `active` to `true`
+      add active : Bool, default: true
+
+      # set all existing users `otp_code` to `"fake-otp-code-123".
+      # New users will require a value to be set.
       add otp_code : String, fill_existing_with: "fake-otp-code-123"
     end
     ```
@@ -272,24 +332,66 @@ class Guides::Database::Migrations < GuideAction
     If a static value will not work, try this:
 
     * If you have not yet released the app, consider using `fill_existing_with: :nothing`
-      and dropping the database `lucky db.drop` and recreating it with `lucky db.create && lucky db.migrate`.
-    * Consider making the type nilable `add otp_code : String?`, then fill the values with whatever value you need.
-      Then later make it required with `make_required :otp_code`
+      and resetting the database with `lucky db.reset`.
+    * Consider making the type nilable (example: `add otp_code : String?`), then fill the values with whatever value you need.
+      Then make it required with `make_required :users, :otp_code`. See the example below:
+
+    ### Filling a newly generated column with custom data
+
+    This will require 2 separate migrations. The first migration will run and create the
+    new column as a "NULLABLE" column. The second migration will set the value on that
+    column, then ensure the column is not NULLABLE.
+
+    * Run `lucky gen.migration AddOtpCodeToUsers`
 
     ``` crystal
+    # db/migrations/#{Time.utc.to_s("%Y%m%d%H%I%S")}_add_otp_code_to_users.cr
     def migrate
       alter table_for(User) do
         # Add nullable column first
         add otp_code : String?
       end
+    end
 
-      # Then add values to it
-      UserQuery.new.each do |user|
-        User::SaveOperation.udpate!(user, otp_code: CodeGenerator.generate)
+    def rollback
+      alter table_for(User) do
+        remove :otp_code
+      end
+    end
+    ```
+
+    * Run `lucky gen.migration FillOtpCodeAndMakeRequired`
+
+    For this migration, we will create a custom model that is used
+    to both query, and update the table. This pattern allows us to
+    keep this migration "future-proof" from potential model changes.
+
+    ```crystal
+    # db/migrations/#{Time.utc.to_s("%Y%m%d%H%I%S")}_fill_otp_code_and_make_required.cr
+    class TempOTPUser < Avram::Model
+      skip_default_columns
+      skip_schema_enforcer
+
+      def self.database : Avram::Database.class
+        AppDatabase
       end
 
-      # Then make it non-nullable
-      make_required :otp_code
+      table :users do
+        primary_key id : UUID # or whatever your PKEY type is...
+        column otp_code : String?
+      end
+    end
+
+    def migrate
+      TempOTPUser::BaseQuery.new.each do |user|
+        TempOTPUser::SaveOperation.update!(user, otp_code: Random::Secure.urlsafe_base64)
+      end
+
+      make_required table_for(User), :otp_code
+    end
+
+    def rollback
+      make_optional table_for(User), :otp_code
     end
     ```
 
@@ -309,8 +411,19 @@ class Guides::Database::Migrations < GuideAction
     You can also update some of the options passed to a column such as a float precision.
 
     ```crystal
-    alter :transactions do
+    alter table_for(Transaction) do
       change_type amount : Float64, precision: 4, scale: 2
+    end
+    ```
+
+    ## Rename column
+
+    The `rename` method must go in the [`alter`](#alter-table) block.
+
+    ```crystal
+    alter table_for(User) do
+      rename :old_name, :new_name
+      rename :birthday, :birthdate
     end
     ```
 
@@ -336,6 +449,20 @@ class Guides::Database::Migrations < GuideAction
     end
     ```
 
+    The name of the index will be generated for you automatically. If you would like to use your own
+    custom index name, you can pass the `name` option.
+
+    ```crystal
+    def migrate
+      create_index :users,
+                   [:status, :joined_at, :email],
+                   name: "special_status_index"
+    end
+    ```
+
+    > Postgres imposes a 63 byte limit on identifiers. If you create an index on a lot of columns,
+    > you will want to create a custom index name to avoid it being truncated. [read more](https://til.hashrocket.com/posts/8f87c65a0a-postgresqls-max-identifier-length-is-63-bytes)
+
     ## Remove index
 
     Use the `drop_index` method to remove the index.
@@ -358,6 +485,8 @@ class Guides::Database::Migrations < GuideAction
 
     The `add_belongs_to` method will create that foreign key constraint.
 
+    For example, we can tell our database that a `Comment` should reference a `User` as its author:
+
     ```crystal
     def migrate
       create table_for(Comment) do
@@ -369,6 +498,13 @@ class Guides::Database::Migrations < GuideAction
         add_belongs_to author : User, on_delete: :cascade
       end
     end
+    ```
+
+    This will generate a column called `author_id` on the `comments` table with a foreign key constraint pointing to an entry in the `users` table. It will also ensure that when a `User` is removed from the database, all associated `Comments` are also removed:
+
+    ```
+    comments_author_id_fkey" FOREIGN KEY (author_id)
+        REFERENCES users(id) ON DELETE CASCADE
     ```
 
     You must include the `on_delete` option which can be one of
@@ -390,6 +526,17 @@ class Guides::Database::Migrations < GuideAction
     end
     ```
 
+    ### Rename belongs_to
+
+    When you need to rename the association, you can use `rename_belongs_to`.
+
+    ```crystal
+    alter table_for(Employee) do
+      # rename `boss_id` to `manager_id`
+      rename_belongs_to :boss, :manager
+    end
+    ```
+
     ### Remove belongs_to
 
     When you need to remove the association, you can use `remove_belongs_to`.
@@ -400,6 +547,39 @@ class Guides::Database::Migrations < GuideAction
         # This will drop the author_id column
         remove_belongs_to :author
       end
+    end
+    ```
+
+    ## Postgres Extensions
+
+    Postgres extensions allow you to enhance your database setup with new functionality. Some common extensions are adding [UUID functions](https://www.postgresql.org/docs/current/uuid-ossp.html),
+    or using [postgis](https://postgis.net/) to do geographic queries. Avram includes a few methods for enabling and disabling these extensions.
+
+    ### Enable extension
+
+    ```crystal
+    def migrate
+      enable_extension "uuid-ossp"
+    end
+    ```
+
+    ### Disable extension
+
+    ```crystal
+    def rollback
+      disable_extension "uuid-ossp"
+    end
+    ```
+
+    ### Update extension
+
+    ```crystal
+    def migrate
+      # Update to the latest version of the extension
+      update_extension "hstore"
+
+      # or update to a specific version
+      update_extension "hstore", to: "2.0"
     end
     ```
 

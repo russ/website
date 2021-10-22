@@ -96,7 +96,7 @@ class Guides::HttpAndRouting::ErrorHandling < GuideAction
       if html?
         error_html message: "Custom error message.", status: 418
       else
-        error_html message: "Custom error", status: 418
+        error_json message: "Custom error", status: 418
       end
     end
     ```
@@ -151,7 +151,7 @@ class Guides::HttpAndRouting::ErrorHandling < GuideAction
     end
     ```
 
-    If you open `src/actions/errors/show_page.cr`, you'll see the other errors
+    If you open `src/actions/errors/show.cr`, you'll see the other errors
     that Lucky handles by default.
 
     One of special note is the `Lucky::RenderableError`. We'll talk about

@@ -7,7 +7,16 @@ class GuidesList
         Guides::GettingStarted::StartingProject,
         Guides::GettingStarted::Concepts,
         Guides::GettingStarted::Configuration,
-        Guides::GettingStarted::Logging,
+      ] of GuideAction.class),
+      GuideCategory.new("Beginners Tutorial", [
+        Guides::Tutorial::Overview,
+        Guides::Tutorial::NewResource,
+        Guides::Tutorial::Associations,
+        Guides::Tutorial::Design,
+        Guides::Tutorial::UsingComponents,
+        Guides::Tutorial::OperationsFactories,
+        Guides::Tutorial::Queries,
+        Guides::Tutorial::BeyondBasics,
       ] of GuideAction.class),
       GuideCategory.new("HTTP and Routing", [
         Guides::HttpAndRouting::RoutingAndParams,
@@ -20,20 +29,23 @@ class GuidesList
         Guides::HttpAndRouting::HTTPHandlers,
         Guides::HttpAndRouting::SecurityHeaders,
       ] of GuideAction.class),
-      GuideCategory.new("Frontend", [
+      GuideCategory.new("Frontend and HTML", [
         Guides::Frontend::RenderingHtml,
+        Guides::Frontend::HtmlForms,
         Guides::Frontend::AssetHandling,
-        Guides::Frontend::Testing,
+        Guides::Frontend::Internationalization,
       ] of GuideAction.class),
       GuideCategory.new("Database", [
         Guides::Database::IntroToAvramAndORMs,
         Guides::Database::DatabaseSetup,
         Guides::Database::Migrations,
         Guides::Database::Models,
-        Guides::Database::QueryingDeleting,
-        Guides::Database::ValidatingSaving,
+        Guides::Database::Querying,
+        Guides::Database::SavingRecords,
+        Guides::Database::CallbacksAndValidations,
+        Guides::Database::DeletingRecords,
+        Guides::Database::Pagination,
         Guides::Database::RawSql,
-        Guides::Database::Testing,
       ] of GuideAction.class),
       GuideCategory.new("JSON and APIs", [
         Guides::JsonAndApis::RenderingJson,
@@ -50,12 +62,25 @@ class GuidesList
         Guides::CommandLineTasks::BuiltIn,
         Guides::CommandLineTasks::CustomTasks,
       ] of GuideAction.class),
+      GuideCategory.new("Handling Files", [
+        Guides::HandlingFiles::FileUploads,
+      ] of GuideAction.class),
       GuideCategory.new("Emails", [
         Guides::Emails::SendingEmailsWithCarbon,
       ] of GuideAction.class),
       GuideCategory.new("Deploying", [
         Guides::Deploying::Heroku,
         Guides::Deploying::Ubuntu,
+        Guides::Deploying::Dokku,
+      ] of GuideAction.class),
+      GuideCategory.new("Testing and Debugging", [
+        Guides::Testing::Introduction,
+        Guides::Testing::HtmlAndInteractivity,
+        Guides::Testing::CreatingTestData,
+        Guides::Testing::TestingActions,
+        Guides::Testing::Debugging,
+        Guides::GettingStarted::Logging,
+        Guides::Testing::ContinuousIntegration,
       ] of GuideAction.class),
     ]
   end

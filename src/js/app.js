@@ -9,7 +9,7 @@ import Turbolinks from "turbolinks";
 RailsUjs.start();
 Turbolinks.start();
 
-import hljs from 'highlight.js';
+import hljs from 'highlight.js/lib/core';
 
 import javascript from 'highlight.js/lib/languages/javascript';
 hljs.registerLanguage('javascript', javascript);
@@ -31,6 +31,15 @@ hljs.registerLanguage('sql', sql);
 
 import erb from 'highlight.js/lib/languages/erb';
 hljs.registerLanguage('erb', erb);
+
+import html from 'highlight.js/lib/languages/xml';
+hljs.registerLanguage('html', html);
+
+import yaml from 'highlight.js/lib/languages/yaml';
+hljs.registerLanguage('yaml', yaml);
+
+import diff from 'highlight.js/lib/languages/diff';
+hljs.registerLanguage('diff', diff);
 
 document.addEventListener("turbolinks:load", function () {
   document.querySelectorAll('pre code').forEach((block) => {
